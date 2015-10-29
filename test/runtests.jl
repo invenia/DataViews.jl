@@ -8,12 +8,12 @@ import Base.Dates: Day
 TEST_DIR = pwd()
 
 tests = [
-    #"lint",
+    "lint",
     "utils",
     "datums",
     "caches",
     "views",
-    "sources",
+    #"sources",
 ]
 
 

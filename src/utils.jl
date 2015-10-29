@@ -7,7 +7,7 @@ Provides a datetime specific intersection by taking datetime ranges reducing the
 and step Period to seconds performing a normal StepRange{Int,Int} intersection and the converting
 the result back. For now we only do second level accuracy, but milliseconds may be supported in the future.
 """
-function intersect{T<:DateTime, S<:Period}(r::StepRange{T,S}, s::StepRange{T,S})
+function intersect{S<:Period}(r::StepRange{DateTime,S}, s::StepRange{DateTime,S})
     nintersect = Base.intersect(integer_range(r), integer_range(s))
 
     #return integer_range(r), integer_range(s)
