@@ -19,4 +19,6 @@ Base.getindex(cache::DefaultDataCache, idx...) = getindex(cache.data, idx...)
 Base.sub(cache::DefaultDataCache, idx...) = DefaultDataCache(sub(cache.data, idx...))
 Base.setindex!(cache::DefaultDataCache, x::Any, idx...) = setindex!(cache.data, x, idx...)
 Base.length(cache::DefaultDataCache) = length(cache.data)
+Base.size(cache::DefaultDataCache, dims...) = size(cache.data, dims...)
 data(cache::DefaultDataCache) = cache.data
+==(a::DefaultDataCache, b::DefaultDataCache) = data(a) == data(b)

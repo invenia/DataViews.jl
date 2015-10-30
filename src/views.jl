@@ -26,14 +26,6 @@ immutable DataView <: AbstractDataView
             cache
         )
     end
-
-    function DataView{T<:AbstractDataCache}(view::DataView, cache::T)
-        new(
-            view.labels,
-            view.expected,
-            cache
-        )
-    end
 end
 
 
@@ -61,7 +53,13 @@ function Base.insert!(view::DataView, model::DefaultDatum)
     index = fill(-1, length(view.labels))
 
     for i in eachindex(index)
-        index[i] = findfirst(view.expected[i], keys(model)[i])
+        idx = findfirst(view.expected[i], keys(model)[i])
+
+        if idx > 0
+            index[i] = idx
+        else
+            error("$(keys(model)[i]) is not in $(view.expected[i])")
+        end
     end
 
     view.cache[index] = value(model)
@@ -95,7 +93,8 @@ end
 Indexing on the default dataview returns another dataview with a sub cache.
 """
 function Base.getindex(view::DataView, idx...)
-    index = fill(:, length(view.labels))
+    index = Array{Any, 1}(length(view.labels))
+    fill!(index, :)
 
     for i in 1:length(idx)
         tmp_exp = view.expected[i]
@@ -107,22 +106,38 @@ function Base.getindex(view::DataView, idx...)
             else
                 tmp_idx = findfirst(tmp_exp, tmp_idx)
             end
+
+            index[i] = tmp_idx
         end
     end
 
     subcache = sub(view.cache, index...)
 
+    #println(index)
+    #println(subcache)
     # If the resulting subcache containts just 1 element
     # just return that element otherwise return a new
     if length(subcache) == 1
-        return view.cache[index...]
+        return subcache[1]
     else
-        return DefaultDataView(
+        new_exp = tuple(
             map(
                 i -> view.expected[i][index[i]],
                 eachindex(index)
-            ),
-            sub(view.cache, index...)
+            )...
+        )
+
+        new_lbls = tuple(
+            map(
+                i -> view.labels[i],
+                1:length(size(subcache))
+            )...
+        )
+
+        return DataView(
+            new_exp,
+            subcache;
+            labels=new_lbls
         )
     end
 end
