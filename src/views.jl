@@ -50,7 +50,8 @@ Inserts a default datum into the cache, using the values returned
 by `keys(datum)` to select the cache index.
 """
 function Base.insert!(view::DataView, model::DefaultDatum)
-    index = fill(-1, length(view.labels))
+    index = Array{Any, 1}(length(view.labels))
+    fill!(index, -1)
 
     for i in eachindex(index)
         idx = findfirst(view.expected[i], keys(model)[i])
@@ -62,7 +63,7 @@ function Base.insert!(view::DataView, model::DefaultDatum)
         end
     end
 
-    view.cache[index] = value(model)
+    view.cache[index...] = value(model)
 end
 
 
@@ -70,9 +71,10 @@ end
 Calls setindex on the cache using the expected keys.
 """
 function Base.setindex!(view::DataView, x::Any, idx...)
-    index = fill(:, length(view.labels))
+    index = Array{Any, 1}(length(view.labels))
+    fill!(index, :)
 
-    for i in 1:length(idx)
+    for i in eachindex(index)
         tmp_exp = view.expected[i]
         tmp_idx = idx[i]
 
@@ -83,6 +85,8 @@ function Base.setindex!(view::DataView, x::Any, idx...)
                 tmp_idx = findfirst(tmp_exp, tmp_idx)
             end
         end
+
+        index[i] = tmp_idx
     end
 
     view.cache[index...] = x

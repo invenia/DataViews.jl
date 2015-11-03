@@ -3,6 +3,9 @@ include("../src/DataViews.jl")
 using DataViews
 using Base.Test
 
+using DBI
+using PostgreSQL
+
 import Base.Dates: Day
 
 TEST_DIR = pwd()
@@ -13,7 +16,7 @@ tests = [
     "datums",
     "caches",
     "views",
-    #"sources",
+    "sources",
 ]
 
 

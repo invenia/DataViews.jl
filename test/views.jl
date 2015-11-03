@@ -7,6 +7,7 @@ myview = DataView((expected_time, expected_id); labels=("time", "id"))
 
 @test myview[:time] == expected_time
 @test myview[:id] == expected_id
+
 myview[start, 1] = 5.0
 
 @test expected_time[1] == expected_time[1]
@@ -17,6 +18,8 @@ insert!(
     myview,
     datum
 )
+
+@test data(myview)[1, 2] == 3.0
 
 subselect = myview[
     expected_time[2]:expected_time[4],

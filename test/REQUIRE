@@ -1,1 +1,2 @@
 Lint
+# Also requires PostgreSQL.jl

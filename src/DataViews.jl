@@ -1,10 +1,13 @@
 module DataViews
 
+using DBI
+
+
 include("utils.jl")
 include("datums.jl")
 include("caches.jl")
 include("views.jl")
-#include("sources.jl")
+include("sources.jl")
 
 export
     AbstractDatum,
@@ -16,11 +19,11 @@ export
 
     AbstractDataView,
     DataView,
-    data
+    data,
 
-    # AbstractDataSource,
-    # SQLDataSource,
-    # SQLConnectionInfo,
-    # fetch!
+    AbstractDataSource,
+    SQLDataSource,
+    SQLConnectionInfo,
+    fetch!
 
 end
