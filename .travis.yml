@@ -1,0 +1,23 @@
+language: julia
+sudo: false
+os:
+  #- osx
+  - linux
+addons:
+  postgresql: "9.3"
+julia:
+  #- release
+  #- nightly
+  - 0.4
+notifications:
+  email: false
+before_script:
+  - psql -c 'create database julia_test;' -U postgres
+script:
+  - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
+  - julia -e 'Pkg.init(); Pkg.clone(pwd());'
+  - julia -e 'Pkg.clone("https://github.com/JuliaDB/DBI.jl"); Pkg.clone("https://github.com/JuliaDB/PostgreSQL.jl")'
+  - julia -e 'Pkg.test("DataViews";  coverage=true)'
+after_success:
+  - julia -e 'cd(Pkg.dir("DataViews")); Pkg.add("Coverage"); using Coverage; Codecov.submit(process_folder())'
+  - julia -e 'cd(Pkg.dir("DataViews")); Pkg.add("Coverage"); using Coverage; Coveralls.submit(process_folder())'
