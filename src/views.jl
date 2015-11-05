@@ -6,40 +6,57 @@ The DefaultDataView simply stores the indices and labels and dictionaries.
 The actual storage of the data is handled by the cache choice, which should minimize
 the likelihood of needing to create a custom view type.
 """
-immutable DataView <: AbstractDataView
+immutable DataView{T<:AbstractDataCache} <: AbstractDataView
     labels::Tuple{Vararg{Symbol}}
     expected::Tuple
-    cache::AbstractDataCache
-
-    function DataView{T<:AbstractDataCache}(expected::Tuple, cache::T; labels=())
-        if isempty(labels)
-            labels = map(i -> symbol(i), 1:length(expected))
-        elseif length(labels) == length(expected)
-            labels = map(i -> symbol(i), labels)
-        else
-            error("You must provide labels for each key.")
-        end
-
-        new(
-            labels,
-            expected,
-            cache
-        )
-    end
+    cache::T
 end
 
+"""
+Most simple constructor of a DataView which takes explicitly takes a
+DataCache.
+"""
+function DataView{T<:AbstractDataCache}(expected::Tuple, cache::T; labels=())
+    if isempty(labels)
+        labels = map(i -> symbol(i), 1:length(expected))
+    elseif length(labels) == length(expected)
+        labels = map(i -> symbol(i), labels)
+    else
+        error("You must provide labels for each key.")
+    end
+
+    DataView{T}(
+        labels,
+        expected,
+        cache
+    )
+end
 
 """
-This is just a helper constructor which will build a regular DataCache for you.
+This is just a helper constructor which will build a DefaultCache for you.
 It assumes the DataCache values should be Float64s and the default value should be 0.0 or can be provided
 """
-function DataView(expected::Tuple; labels=(), empty_value=0.0)
+function DataView(expected::Tuple; labels=(), empty_value=0.0, mmapped=false)
     DataView(
         expected,
-        DefaultDataCache(
-            map(i -> length(i), expected)...,
-            empty_value=empty_value
-        ),
+        DataCache(
+            map(i -> length(i), expected)...;
+            empty_value=empty_value,
+            mmapped=mmapped
+        );
+        labels=labels
+    )
+end
+
+"""
+This is a helper constructor that will create a DataView with a StatsCache,
+given the OnlineStat type provided.
+"""
+function DataView{T<:OnlineStat}(::Type{T}, expected::Tuple; labels=(), stats_dim=1)
+    cache = DataCache(T, map(i -> length(i), expected)...; stats_dim=stats_dim)
+    DataView(
+        expected,
+        cache;
         labels=labels
     )
 end
@@ -97,7 +114,7 @@ end
 Indexing on the default dataview returns another dataview with a sub cache.
 """
 function Base.getindex(view::DataView, idx...)
-    index = Array{Any, 1}(length(view.labels))
+    index = Array{Base.ViewIndex, 1}(length(view.labels))
     fill!(index, :)
 
     for i in 1:length(idx)
@@ -117,8 +134,6 @@ function Base.getindex(view::DataView, idx...)
 
     subcache = sub(view.cache, index...)
 
-    #println(index)
-    #println(subcache)
     # If the resulting subcache containts just 1 element
     # just return that element otherwise return a new
     if length(subcache) == 1

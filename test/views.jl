@@ -3,7 +3,11 @@ start = stop - Day(10)
 expected_time = collect(start:Day(1):stop)
 expected_id = collect(1:5)
 
-myview = DataView((expected_time, expected_id); labels=("time", "id"))
+myview = DataView(
+    (expected_time, expected_id);
+    labels=("time", "id"),
+    mmapped=true
+)
 
 @test myview[:time] == expected_time
 @test myview[:id] == expected_id
