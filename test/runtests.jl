@@ -20,7 +20,7 @@ tests = [
     "datums",
     "caches",
     "views",
-    #"sources",
+    "sources",
 ]
 
 

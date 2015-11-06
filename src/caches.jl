@@ -57,7 +57,7 @@ function StatsCache{T<:OnlineStat,N}(a::Array{T,N}, stats_dim::Int64)
 end
 
 """
-`DataCache{T}(dims::Int64...; empty_value::T=0.0, mapped=false` is a
+`DataCache{T}(dims::Int64...; empty_value::T=0.0, mapped=false)` is a
 constructor for building a DefaultCache that may or may or not be memory
 mapped.
 """

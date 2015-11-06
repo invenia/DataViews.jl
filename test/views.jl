@@ -3,10 +3,18 @@ start = stop - Day(10)
 expected_time = collect(start:Day(1):stop)
 expected_id = collect(1:5)
 
+# View with default cache
 myview = DataView(
     (expected_time, expected_id);
     labels=("time", "id"),
     mmapped=true
+)
+
+# View with stats cache
+statsview = DataView(
+    Variance,
+    (expected_time, expected_id);
+    labels=("time", "id"),
 )
 
 @test myview[:time] == expected_time
@@ -23,11 +31,14 @@ insert!(
     datum
 )
 
-@test data(myview)[1, 2] == 3.0
+labels, expected, cache = data(myview)
+@test labels == (:time, :id)
+@test expected == (expected_time, expected_id)
+@test cache[1,2] == 3.0
 
 subselect = myview[
     expected_time[2]:expected_time[4],
     2:5
 ]
 
-@test data(subselect) == sub(data(myview), 2:4, 2:5)
+@test data(subselect)[3] == sub(data(myview)[3], 2:4, 2:5)

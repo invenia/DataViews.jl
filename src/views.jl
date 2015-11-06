@@ -2,8 +2,15 @@ abstract AbstractDataView
 
 
 """
-The DefaultDataView simply stores the indices and labels and dictionaries.
-The actual storage of the data is handled by the cache choice, which should minimize
+`DataView{T<:AbstractDataCache}` provides a mechanism for arbitrary indexing strategies
+into an n-dimensional Array beyond just integer indexing. Similarly, these indices can be
+labelled.
+
+That being said, whenever possible you should use UnitRanges or StepRanges as this keeps
+indexing along a dimension to O(1) rather than O(n), where n is the length of that dimension.
+Whenever possible DataViews will attempt to maintain the use of Ranges during subselections.
+
+NOTE: The actual storage of the data is handled by the cache choice, which should minimize
 the likelihood of needing to create a custom view type.
 """
 immutable DataView{T<:AbstractDataCache} <: AbstractDataView
@@ -13,7 +20,8 @@ immutable DataView{T<:AbstractDataCache} <: AbstractDataView
 end
 
 """
-Most simple constructor of a DataView which takes explicitly takes a
+`DataViews{T<:AbstractDataCache}(expected::Tuple, cache::T, label=())` is the default
+constructor that the other DataView constructors call which takes explicitly takes a
 DataCache.
 """
 function DataView{T<:AbstractDataCache}(expected::Tuple, cache::T; labels=())
@@ -33,8 +41,11 @@ function DataView{T<:AbstractDataCache}(expected::Tuple, cache::T; labels=())
 end
 
 """
-This is just a helper constructor which will build a DefaultCache for you.
-It assumes the DataCache values should be Float64s and the default value should be 0.0 or can be provided
+`DataView(expected::Tuple; labels=(), empty_value=0.0, mmapped=false)` is a
+helper constructorwhich will build a DefaultCache for you with the
+empty_value provided. If type of the empty_value`isbits` you can also tell
+it to build a memory mapped cache. Given that the default empty_value is 0.0
+this assumes that your cache type with only contain Floats.
 """
 function DataView(expected::Tuple; labels=(), empty_value=0.0, mmapped=false)
     DataView(
@@ -49,8 +60,8 @@ function DataView(expected::Tuple; labels=(), empty_value=0.0, mmapped=false)
 end
 
 """
-This is a helper constructor that will create a DataView with a StatsCache,
-given the OnlineStat type provided.
+`DataView{T<:OnlineStat}(::Type{T}, expected::Tuple; labels=(), stats_dim=1)`
+builds a DataView with a `StatsCache` of type `T`.
 """
 function DataView{T<:OnlineStat}(::Type{T}, expected::Tuple; labels=(), stats_dim=1)
     cache = DataCache(T, map(i -> length(i), expected)...; stats_dim=stats_dim)
@@ -63,10 +74,12 @@ end
 
 
 """
-Inserts a default datum into the cache, using the values returned
-by `keys(datum)` to select the cache index.
+`insert!(view::DataView, model::DefaultDatum)` handle the insertion of a
+`Datum` into the `DataCache` for the view. The values returned
+by `keys(datum)` to select the cache index and the value to be
+inserted should be returned by `value(datum)`.
 """
-function Base.insert!(view::DataView, model::DefaultDatum)
+function Base.insert!(view::DataView, model::AbstractDatum)
     index = Array{Any, 1}(length(view.labels))
     fill!(index, -1)
 
@@ -85,7 +98,9 @@ end
 
 
 """
-Calls setindex on the cache using the expected keys.
+`setindex!(view::DataView, x::Any, idx...)` Calls `setindex!` on the cache,
+using the expected keys to determine the determine the element(s) to
+set in the cache.
 """
 function Base.setindex!(view::DataView, x::Any, idx...)
     index = Array{Any, 1}(length(view.labels))
@@ -96,10 +111,10 @@ function Base.setindex!(view::DataView, x::Any, idx...)
         tmp_idx = idx[i]
 
         if !isa(tmp_idx, Colon)
-            if isa(tmp_idx, Union{AbstractArray, Range})
-                tmp_idx = findin(tmp_exp, tmp_idx)
-            else
+            if isa(tmp_idx, Range) || !isa(tmp_idx, AbstractArray)
                 tmp_idx = findfirst(tmp_exp, tmp_idx)
+            else
+                tmp_idx = findin(tmp_exp, tmp_idx)
             end
         end
 
@@ -111,7 +126,10 @@ end
 
 
 """
-Indexing on the default dataview returns another dataview with a sub cache.
+`getindex(view::DataView, idx...)` performs array style indexing on the
+`DataView`. However, to avoid memory overhead the returned DataView is built
+from a sub cache rather than a copy of it. Also, if the subcache contains a
+single value then that value will be returned rather than a new DataView.
 """
 function Base.getindex(view::DataView, idx...)
     index = Array{Base.ViewIndex, 1}(length(view.labels))
@@ -163,14 +181,15 @@ end
 
 
 """
-If the default view is indexed by a label then the indices for that label are returned.
+`getindex(view::DataView, label::Symbol)` provides a mechanism for querying the
+`DataView` for its indices by label. NOTE: All labels are stored as Symbols.
 """
 Base.getindex(view::DataView, label::Symbol) = view.expected[findfirst(view.labels, label)]
 
 """
-Returns a labels, indices and raw cache data as a tuple.
+`data(view::DataView)` returns the labels, indices and cache as a tuple.
 """
-data(view::DataView) = view.cache
+data(view::DataView) = view.labels, view.expected, view.cache
 
 
 Base.insert!(view::AbstractDataView, x::Type{Any}) = error("Not Implemented")
