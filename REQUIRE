@@ -1,2 +1,7 @@
 julia 0.4-
+OnlineStats
+Plots
+
+# Plots is just needed for the currently tagged version of OnlineStats
+
 # Also, requires DBI.jl
