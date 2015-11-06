@@ -1,11 +1,19 @@
 using DBI
 
+"""
+`AbstractDataSource` provides an interfaces for wrappers that help
+map inserting raw data from real data sources into `DataView`s.
 
+[Required Methods]
+* fetch!(src::AbstractDataSource) fetches data an inserts into into the
+   DataViews, returning those DataViews.
+"""
 abstract AbstractDataSource
-fetch(src::AbstractDataSource) = error("Not Implemented")
+fetch!(src::AbstractDataSource) = error("Not Implemented")
 
 """
-Stores the connection information
+`SQLConnectionInfo{T<:DBI.DatabaseSystem}` stores the common
+connection information needed by DBI to create the DB connection.
 """
 immutable SQLConnectionInfo{T<:DBI.DatabaseSystem}
     driver::Type{T}
@@ -14,25 +22,15 @@ immutable SQLConnectionInfo{T<:DBI.DatabaseSystem}
     password::AbstractString
     dbname::AbstractString
     port::Int64
-
-    # function SQLConnectionInfo(
-    #         driver::Type{T},
-    #         addr::AbstractString,
-    #         username::AbstractString,
-    #         password::AbstractString,
-    #         dbname::AbstractString,
-    #         port::Int64
-    #     )
-    #     new(driver, addr, username, password, dbname, port)
-    # end
 end
 
 
 """
-SQLDataSource takes the db connection info, the query info,
-a datum type to convert to and a list of view to dump into.
+`SQLDataSource{T<:AbstractDatum}` is a subtype of AbstractDataSource which implements
+the DataSource interface for DBI compatible raw sources. Takes the db connection
+info, the query info, a datum type to convert to and a list of view to dump into.
 
-NOTE: currently isn't immutable cause of the fetched bool
+NOTE: currently isn't mutable cause of the fetched bool.
 """
 type SQLDataSource{T<:AbstractDatum} <: AbstractDataSource
     dbinfo::SQLConnectionInfo                       # Stores common db info required for making a connection to the db
@@ -55,6 +53,9 @@ type SQLDataSource{T<:AbstractDatum} <: AbstractDataSource
 
 end
 
+"""
+`SQLDataSource{T<:AbstractDatum}` the SQLDataSource constructor.
+"""
 function SQLDataSource{T<:AbstractDatum}(
         dbinfo::SQLConnectionInfo,
         query::AbstractString,
@@ -72,8 +73,9 @@ function SQLDataSource{T<:AbstractDatum}(
 end
 
 """
-fetch handles the grabbing of data from the datasource and inserting it into the dataviews.
-Currently, this is a synchronous operation, but support for an async fetch maybe provided in the future.
+`fetch!(src::SQLDataSource)` handles the grabbing of data from the datasource
+and inserting it into the dataviews. Currently, this is a synchronous
+operation, but support for an async fetch maybe provided in the future.
 """
 function fetch!(src::SQLDataSource)
     if !src.fetched

@@ -1,6 +1,7 @@
 module DataViews
 
 using DBI
+using OnlineStats
 
 
 include("utils.jl")
@@ -15,7 +16,9 @@ export
     value,
 
     AbstractDataCache,
-    DefaultDataCache,
+    DefaultCache,
+    StatsCache,
+    DataCache,
 
     AbstractDataView,
     DataView,

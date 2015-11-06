@@ -6,10 +6,14 @@ using Base.Test
 using DBI
 using PostgreSQL
 
+using OnlineStats
+
 import Base.Dates: Day
 
 TEST_DIR = pwd()
 
+# lint tests commented out until Lint.jl
+# stops break our tests or producing lots of warnings.
 tests = [
     "lint",
     "utils",

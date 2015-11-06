@@ -3,9 +3,11 @@ import Base.Dates: DateTime, Period, unix2datetime, datetime2unix, Second
 
 
 """
-Provides a datetime specific intersection by taking datetime ranges reducing the DateTime
-and step Period to seconds performing a normal StepRange{Int,Int} intersection and the converting
-the result back. For now we only do second level accuracy, but milliseconds may be supported in the future.
+`intersect{S<:Period}(r::StepRange{DateTime,S}, s::StepRange{DateTime,S})`
+provides a datetime specific intersection by 1) taking datetime ranges 2)reducing
+the DateTime and step Period to seconds 3)performing a normal StepRange{Int,Int}
+intersection and then 4)converting the result back. For now we only do second
+level accuracy, but milliseconds may be supported in the future.
 """
 function intersect{S<:Period}(r::StepRange{DateTime,S}, s::StepRange{DateTime,S})
     nintersect = Base.intersect(integer_range(r), integer_range(s))
@@ -14,7 +16,12 @@ function intersect{S<:Period}(r::StepRange{DateTime,S}, s::StepRange{DateTime,S}
     return datetime_range(S, nintersect)
 end
 
-
+"""
+`findfirst{T<:Any}(keys::Range{T}, key::T)` calculates the first index
+in a Range where the `key` is located. In base julia `findfirst` with a Range
+is the same function as with any `AbstractArray` which searches linearly
+rather than using the information in the Range to calculate the index.
+"""
 function Base.findfirst{T<:Any}(keys::Range{T}, key::T)
     if key in keys
         step_type = typeof(step(keys))
@@ -24,7 +31,12 @@ function Base.findfirst{T<:Any}(keys::Range{T}, key::T)
     end
 end
 
-
+"""
+`findin{T<:Any}(a::StepRange{T}, b::StepRange{T})` provides `findin`
+method that returns a StepRange{T} when given two StepRange{T}.
+Currently, `findin` only returns a Range{T} when working with UnitRanges,
+otherwise an `Array` is returned, which we want to avoid in DataViews.
+"""
 function Base.findin{T<:Any}(a::StepRange{T}, b::StepRange{T})
     nintersect = intersect(a, b)
     step_type = typeof(step(a))
