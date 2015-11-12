@@ -192,7 +192,7 @@ Base.getindex(view::DataView, label::Symbol) = view.expected[findfirst(view.labe
 data(view::DataView) = view.labels, view.expected, view.cache
 
 
-Base.insert!(view::AbstractDataView, x::Type{Any}) = error("Not Implemented")
+Base.insert!(view::AbstractDataView, x::Any) = error("Not Implemented")
 Base.getindex(view::AbstractDataView, idx...) = error("Not Implemented")
 Base.getindex(view::AbstractDataView, label::Symbol) = error("Not Implemented")
 Base.setindex!(cache::AbstractDataView, x::Any, idx...) = error("Not Implemented")

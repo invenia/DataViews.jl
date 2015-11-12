@@ -32,43 +32,54 @@ info, the query info, a datum type to convert to and a list of view to dump into
 
 NOTE: currently isn't mutable cause of the fetched bool.
 """
-type SQLDataSource{T<:AbstractDatum} <: AbstractDataSource
+type SQLDataSource <: AbstractDataSource
     dbinfo::SQLConnectionInfo                       # Stores common db info required for making a connection to the db
     query::AbstractString                           # the sql query to run
     views::Tuple{Vararg{AbstractDataView}}          # A list of caches to use.
     params::Tuple                                   # Parameters to pass to the query
-    datum_type::Type{T}                             # A type to convert each row to, which allows us to dispatch on inserting into a cache
+    converters::Tuple{Vararg{Function}}             # A type to convert each row to, which allows us to dispatch on inserting into a cache
     fetched::Bool
 
-    function SQLDataSource(dbinfo, query, views, params, datum_type)
-        new(
-            dbinfo,
-            query,
-            views,
-            (),
-            DefaultDatum,
-            false
-        )
-    end
-
+    # function SQLDataSource(dbinfo, query, views, params, datum_type)
+    #     new(
+    #         dbinfo,
+    #         query,
+    #         views,
+    #         (),
+    #         DefaultDatum,
+    #         false
+    #     )
+    # end
 end
 
 """
 `SQLDataSource{T<:AbstractDatum}` the SQLDataSource constructor.
 """
-function SQLDataSource{T<:AbstractDatum}(
+function SQLDataSource(
         dbinfo::SQLConnectionInfo,
         query::AbstractString,
         views::Tuple{Vararg{AbstractDataView}};
-        parameters=(),
-        datum_type::Type{T}=DefaultDatum
+        parameters::Tuple=(),
+        converters::Union{Function, Tuple{Vararg{Function}}}=create_datum
     )
-    SQLDataSource{T}(
+    if isempty(views)
+        error("Please supply at least 1 DataView.")
+    end
+
+    convert_funcs = converters
+    if isa(converters, Function)
+        convert_funcs = (map(i -> converters, 1:length(views))...)
+    elseif length(converters) != length(views)
+        error("Please provide a converter function for each view.")
+    end
+
+    SQLDataSource(
         dbinfo,
         query,
         views,
         parameters,
-        datum_type
+        convert_funcs,
+        false
     )
 end
 
@@ -87,11 +98,21 @@ function fetch!(src::SQLDataSource)
             stmt = prepare(conn, src.query)
             results = execute(stmt, [src.params...])
 
-            for r in results
-                datum = src.datum_type((r...))
+            if errcode(conn) != 0
+                error("
+                    Query Failed with '$(errstring(conn))($(errcode(conn)))':\n
+                        \tStatement=$(src.query), Parameters=$(src.params)
+                ")
+            end
 
+            for r in results
+                #println(r)
+                #datum = src.datum((r...))
+                #println(typeof(datum))
+                #println(datum)
                 # At the very least we parallelize the insertion of the datum into each view.
                 for i in 1:length(src.views)
+                    datum = src.converters[i]((r...))
                     insert!(src.views[i], datum)
                 end
             end

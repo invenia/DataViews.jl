@@ -12,8 +12,9 @@ include("sources.jl")
 
 export
     AbstractDatum,
-    DefaultDatum,
+    Datum,
     value,
+    create_datum,
 
     AbstractDataCache,
     DefaultCache,

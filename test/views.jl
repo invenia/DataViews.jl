@@ -24,7 +24,7 @@ myview[start, 1] = 5.0
 
 @test expected_time[1] == expected_time[1]
 
-datum = DefaultDatum((expected_time[1], 2, 3.0))
+datum = create_datum((expected_time[1], 2, 3.0))
 
 insert!(
     myview,

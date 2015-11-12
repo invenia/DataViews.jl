@@ -77,9 +77,9 @@ end
 `DataCache{T<:OnlineStat}(::Type{T}, dims::Int64...; stats_dim::Int64=1)` is
 constructor for building a StatsCache.
 """
-function DataCache{T<:OnlineStat}(::Type{T}, dims::Int64...; stats_dim::Int64=1)
+function DataCache{T<:OnlineStat}(::Type{T}, dims::Int64...; stats_dim::Int64=1, weighting=EqualWeighting())
     a = Array{T, length(dims)}(dims...)
-    map(i -> a[i] = T(), eachindex(a))
+    map(i -> a[i] = T(weighting), eachindex(a))
     StatsCache{T,ndims(a)}(a, stats_dim)
 end
 
