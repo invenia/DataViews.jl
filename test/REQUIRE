@@ -1,2 +1,2 @@
 Lint
-# Also requires PostgreSQL.jl
+# Also requires PostgreSQL.jl and PersistentArrays

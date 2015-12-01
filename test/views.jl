@@ -11,10 +11,12 @@ myview = DataView(
 )
 
 # View with stats cache
+println("Main statscache")
 statsview = DataView(
     Variance,
     (expected_time, expected_id);
     labels=("time", "id"),
+    weighting=ExponentialWeighting(0.5)
 )
 
 @test myview[:time] == expected_time

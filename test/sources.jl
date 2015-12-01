@@ -16,7 +16,7 @@ end
 dbinfo = SQLConnectionInfo(
     Postgres,
     "localhost",
-    "rory",
+    "postgres",
     "",
     "julia_test",
     5432

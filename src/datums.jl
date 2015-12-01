@@ -35,10 +35,10 @@ datums using an arbitrary conversion function.
 
 NOTE: could probably use a better name.
 """
-function create_datum(convert_func::Function)
+function create_datum(convert_func::Function; kwargs...)
     function datum_func(data::Tuple)
         #println(data)
-        new_data = convert_func(data)
+        new_data = convert_func(data; kwargs...)
         #println(new_data)
         Datum{typeof(new_data[end])}(
             new_data[1:end-1],

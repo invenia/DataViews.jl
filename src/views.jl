@@ -30,7 +30,7 @@ function DataView{T<:AbstractDataCache}(expected::Tuple, cache::T; labels=())
     elseif length(labels) == length(expected)
         labels = map(i -> symbol(i), labels)
     else
-        error("You must provide labels for each key.")
+        error("You must provide labels for each key. labels=$labels; keys=$expected")
     end
 
     DataView{T}(
@@ -63,8 +63,8 @@ end
 `DataView{T<:OnlineStat}(::Type{T}, expected::Tuple; labels=(), stats_dim=1)`
 builds a DataView with a `StatsCache` of type `T`.
 """
-function DataView{T<:OnlineStat}(::Type{T}, expected::Tuple; labels=(), stats_dim=1)
-    cache = DataCache(T, map(i -> length(i), expected)...; stats_dim=stats_dim)
+function DataView{T<:OnlineStat}(::Type{T}, expected::Tuple; labels=(), stats_dim=1, weighting=EqualWeighting())
+    cache = StatsCache(T, map(i -> length(i), expected)...; stats_dim=stats_dim, weighting=weighting)
     DataView(
         expected,
         cache;
@@ -113,6 +113,9 @@ function Base.setindex!(view::DataView, x::Any, idx...)
         if !isa(tmp_idx, Colon)
             if isa(tmp_idx, Range) || !isa(tmp_idx, AbstractArray)
                 tmp_idx = findfirst(tmp_exp, tmp_idx)
+                if tmp_idx == 0
+                    error("$(idx[i]) not found in expected $tmp_exp")
+                end
             else
                 tmp_idx = findin(tmp_exp, tmp_idx)
             end
@@ -164,17 +167,10 @@ function Base.getindex(view::DataView, idx...)
             )...
         )
 
-        new_lbls = tuple(
-            map(
-                i -> view.labels[i],
-                1:length(size(subcache))
-            )...
-        )
-
         return DataView(
             new_exp,
             subcache;
-            labels=new_lbls
+            labels=view.labels
         )
     end
 end
@@ -195,5 +191,5 @@ data(view::DataView) = view.labels, view.expected, view.cache
 Base.insert!(view::AbstractDataView, x::Any) = error("Not Implemented")
 Base.getindex(view::AbstractDataView, idx...) = error("Not Implemented")
 Base.getindex(view::AbstractDataView, label::Symbol) = error("Not Implemented")
-Base.setindex!(cache::AbstractDataView, x::Any, idx...) = error("Not Implemented")
+Base.setindex!(view::AbstractDataView, x::Any, idx...) = error("Not Implemented")
 data(view::AbstractDataView) = error("Not Implemeneted")
