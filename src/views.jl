@@ -27,6 +27,15 @@ constructor that the other DataView constructors call, which explicitly takes th
 dict and DataCache.
 """
 function DataView{I<:Any, T<:AbstractDataCache}(index::OrderedDict{Symbol, I}, cache::T)
+    new_index = copy(index)
+
+    # Convert partitions to OrderedDicts
+    for (key, val) in index
+        if isa(val, Tuple{Tuple}) || isa(val, Tuple{Pair})
+            new_index[key] = OrderedDict(val)
+        end
+    end
+
     DataView{I,T}(index, cache)
 end
 
@@ -36,7 +45,7 @@ cache, but allows optionally specifying the labels.
 """
 function DataView{T<:AbstractDataCache}(expected::Tuple, cache::T; labels=())
     if isempty(labels)
-        labels = map(i -> symbol(i), 1:length(expected))
+        labels = tuple(map(i -> symbol(i), 1:length(expected))...)
     elseif length(labels) == length(expected)
         labels = map(i -> symbol(i), labels)
     else
@@ -134,7 +143,7 @@ function indices(view::AbstractDataView, idx...)
                 if length(tmp_idx) == 0
                     error("$(idx[i]) is not found in $(tmp_exp)")
                 end
-            elseif isa(tmp_idx, Tuple{Vararg{Symbol}}) || isa(tmp_idx, AbstractArray{Symbol})
+            elseif isa(tmp_idx, Tuple{Vararg{Symbol}})
                 if !isa(tmp_exp, OrderedDict)
                     error("$tmp_idx only works for partition indices, but $(tmp_exp) is not a partitioned index")
                 end
@@ -149,7 +158,7 @@ function indices(view::AbstractDataView, idx...)
                 end
                 tmp_idx = tmp
             elseif isa(tmp_idx, Associative)
-                if !isa(tmp_exp, OrderedDict{Symbol, Any})
+                if !isa(tmp_exp, OrderedDict)
                     error("$(tmp_exp) is not a valid index argument")
                 end
 
@@ -208,7 +217,8 @@ end
 using the expected keys to determine the determine the element(s) to
 set in the cache.
 """
-function Base.setindex!(view::DataView, x::Any, idx...)
+function Base.setindex!(view::DataView, x::Any, i...)
+    idx = convert_partitions(i)
     index = indices(view, idx...)
     view.cache[index...] = x
 end
@@ -220,7 +230,8 @@ end
 from a sub cache rather than a copy of it. Also, if the subcache contains a
 single value then that value will be returned rather than a new DataView.
 """
-function Base.getindex(view::DataView, idx...)
+function Base.getindex(view::DataView, i...)
+    idx = convert_partitions(i)
     index = indices(view, idx...)
 
     subcache = sub(view.cache, index...)
@@ -236,13 +247,13 @@ function Base.getindex(view::DataView, idx...)
         for i in eachindex(index)
             if isa(idx_vals[i], Associative)
                 sub_dict = OrderedDict()
-                if isa(idx[i], Tuple{Vararg{Symbol}}) || isa(idx[i], AbstractArray{Symbol})
+                if isa(idx[i], Tuple{Vararg{Symbol}})
                     for key in idx[i]
                         sub_dict[key] = idx_vals[i][key]
                     end
                 elseif isa(idx[i], Associative)
                     for key in keys(idx[i])
-                        sub_dic[key] = idx_vals[i][idx[i][key]]
+                        sub_dict[key] = idx_vals[i][key][idx[i][key]]
                     end
                 end
                 push!(new_exp, sub_dict)
@@ -297,5 +308,15 @@ function get_cache_dim(expected)
             end
         end
         return l
+    end
+end
+
+function convert_partitions(x)
+    return map(x) do d
+        if isa(d, Tuple{Tuple}) || isa(d, Tuple{Pair})
+            return OrderedDict(d)
+        else
+            return d
+        end
     end
 end

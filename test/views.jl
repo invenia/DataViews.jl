@@ -1,3 +1,14 @@
+# Test interface failure conditions
+type BadView <: AbstractDataView end
+
+bv = BadView()
+
+@test_throws(ErrorException, bv[1])
+@test_throws(ErrorException, bv[1] = 1.0)
+@test_throws(ErrorException, bv[:foo])
+@test_throws(ErrorException, insert!(bv, (1,2,3)))
+@test_throws(ErrorException, data(bv))
+
 stop = DateTime(now())
 start = stop - Day(10)
 expected_time = collect(start:Day(1):stop)
@@ -9,6 +20,9 @@ myview = DataView(
     labels=("time", "id"),
     mmapped=true
 )
+
+empty_labels = DataView((expected_time, expected_id))
+@test_throws(ErrorException, DataView((expected_time, expected_id); labels=("foo",)))
 
 # View with stats cache
 println("Main statscache")
@@ -57,4 +71,15 @@ index_map = OrderedDict((
 ))
 
 partitioned = DataView(index_map)
-@test data(partitioned[start, (:gps, :weather,)])[2] == zeros(15)'
+@test data(partitioned[start, (:gps, :weather)])[2] == zeros(15)'
+
+partitioned[start, (:gps => 1,)] = 1.0
+@test data(partitioned[start, (:gps, :weather,)])[2] != zeros(15)'
+
+test_gps = [1.0, 2.0, 3.0, 4.0, 5.0]
+partitioned[start, (:gps,)] = test_gps
+@test data(partitioned[start, (:gps,)])[2] == test_gps'
+
+data(partitioned[start, OrderedDict((:gps => 1:2, :direction => 3:4))])[2]
+
+stats_partitioned = DataView(Variance, index_map)
