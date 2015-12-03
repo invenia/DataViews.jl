@@ -138,14 +138,22 @@ function indices(view::AbstractDataView, idx...)
 
         if !isa(tmp_idx, Colon)
             if isa(tmp_idx, AbstractArray)
-                tmp_idx = findin(tmp_exp, tmp_idx)
+                if isa(tmp_exp, OrderedDict)
+                    tmp_idx = findin(1:size(view.cache, i), tmp_idx)
+                else
+                    tmp_idx = findin(tmp_exp, tmp_idx)
+                end
 
                 if length(tmp_idx) == 0
                     error("$(idx[i]) is not found in $(tmp_exp)")
                 end
-            elseif isa(tmp_idx, Tuple{Vararg{Symbol}})
+            elseif isa(tmp_idx, Tuple{Vararg{Symbol}}) || isa(tmp_idx, Symbol)
                 if !isa(tmp_exp, OrderedDict)
                     error("$tmp_idx only works for partition indices, but $(tmp_exp) is not a partitioned index")
+                end
+
+                if isa(tmp_idx, Symbol)
+                    tmp_idx = (tmp_idx,)
                 end
 
                 tmp = Int[]

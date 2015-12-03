@@ -21,6 +21,10 @@ myview = DataView(
     mmapped=true
 )
 
+@test_throws(ErrorException, myview[start, 7:9])
+@test_throws(ErrorException, myview[start, 7])
+@test_throws(ErrorException, myview[start, (:gps => 1:2,)])
+@test_throws(ErrorException, myview[start, (:gps, :weather)])
 empty_labels = DataView((expected_time, expected_id))
 @test_throws(ErrorException, DataView((expected_time, expected_id); labels=("foo",)))
 
@@ -77,9 +81,15 @@ partitioned[start, (:gps => 1,)] = 1.0
 @test data(partitioned[start, (:gps, :weather,)])[2] != zeros(15)'
 
 test_gps = [1.0, 2.0, 3.0, 4.0, 5.0]
-partitioned[start, (:gps,)] = test_gps
-@test data(partitioned[start, (:gps,)])[2] == test_gps'
+partitioned[start, :gps] = test_gps
+@test data(partitioned[start, :gps])[2] == test_gps'
+@test data(partitioned[start, 1:2])[2] == test_gps[1:2]'
 
 data(partitioned[start, OrderedDict((:gps => 1:2, :direction => 3:4))])[2]
 
 stats_partitioned = DataView(Variance, index_map)
+
+alternate_partitioned = DataView((expected_time,
+    (:gps => 1:5, :direction => 1:8, :weather => 1:10));
+    labels=(:time, :features)
+)

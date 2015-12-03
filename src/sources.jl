@@ -39,17 +39,6 @@ type SQLDataSource <: AbstractDataSource
     params::Tuple                                   # Parameters to pass to the query
     converters::Tuple{Vararg{Function}}             # A type to convert each row to, which allows us to dispatch on inserting into a cache
     fetched::Bool
-
-    # function SQLDataSource(dbinfo, query, views, params, datum_type)
-    #     new(
-    #         dbinfo,
-    #         query,
-    #         views,
-    #         (),
-    #         DefaultDatum,
-    #         false
-    #     )
-    # end
 end
 
 """
@@ -98,7 +87,7 @@ function fetch!(src::SQLDataSource)
             stmt = prepare(conn, src.query)
             results = execute(stmt, [src.params...])
 
-            if errcode(conn) != 0
+            if errcode(conn) != 0 || errstring(conn) != ""
                 error("
                     Query Failed with '$(errstring(conn))($(errcode(conn)))':\n
                         \tStatement=$(src.query), Parameters=$(src.params)

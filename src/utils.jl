@@ -17,6 +17,20 @@ function intersect{S<:Period}(r::StepRange{DateTime,S}, s::StepRange{DateTime,S}
 end
 
 """
+Simply tests whether a is within b.
+
+NOTE: this is a less strict version of issubset as it doesn't test
+the internal values, which is useful for querying by different UnitRanges.
+"""
+function within(a, b)
+    if first(a) < first(b) || last(a) > last(b)
+        return false
+    else
+        return true
+    end
+end
+
+"""
 `findfirst{T<:Any}(keys::Range{T}, key::T)` calculates the first index
 in a Range where the `key` is located. In base julia `findfirst` with a Range
 is the same function as with any `AbstractArray` which searches linearly
