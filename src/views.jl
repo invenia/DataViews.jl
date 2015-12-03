@@ -3,7 +3,6 @@ using DataStructures
 
 abstract AbstractDataView{I, T}
 
-typealias IndexValue Union{AbstractArray, }
 """
 `DataView{T<:AbstractDataCache}` provides a mechanism for arbitrary indexing strategies
 into an n-dimensional Array beyond just integer indexing. Similarly, these indices can be
@@ -16,7 +15,7 @@ Whenever possible DataViews will attempt to maintain the use of Ranges during su
 NOTE: The actual storage of the data is handled by the cache choice, which should minimize
 the likelihood of needing to create a custom view type.
 """
-immutable DataView{I<:Any, T<:AbstractDataCache} <: AbstractDataView{I,T}
+type DataView{I<:Any, T<:AbstractDataCache} <: AbstractDataView{I,T}
     index::OrderedDict{Symbol, I}
     cache::T
 end
@@ -27,16 +26,15 @@ constructor that the other DataView constructors call, which explicitly takes th
 dict and DataCache.
 """
 function DataView{I<:Any, T<:AbstractDataCache}(index::OrderedDict{Symbol, I}, cache::T)
-    new_index = copy(index)
+    new_index = build_index(index)
 
-    # Convert partitions to OrderedDicts
-    for (key, val) in index
-        if isa(val, Tuple{Tuple}) || isa(val, Tuple{Pair})
-            new_index[key] = OrderedDict(val)
-        end
+    calculated = tuple(get_cache_dim(new_index)...)
+    actual = size(cache)
+    if calculated != actual
+        error("Dimension dimension mismatch: index=$(calculated), cache=$actual, orig_map=$index, new_map=$new_index")
     end
 
-    DataView{I,T}(index, cache)
+    DataView{I,T}(new_index, cache)
 end
 
 """
@@ -44,19 +42,8 @@ end
 cache, but allows optionally specifying the labels.
 """
 function DataView{T<:AbstractDataCache}(expected::Tuple, cache::T; labels=())
-    if isempty(labels)
-        labels = tuple(map(i -> symbol(i), 1:length(expected))...)
-    elseif length(labels) == length(expected)
-        labels = map(i -> symbol(i), labels)
-    else
-        error("You must provide labels for each key. labels=$labels; keys=$expected")
-    end
-
-    @assert isa(labels, Tuple)
-    @assert isa(expected, Tuple)
-
     DataView(
-        OrderedDict(zip(labels, expected)),
+        build_index(expected, labels),
         cache
     )
 end
@@ -69,10 +56,11 @@ it to build a memory mapped cache. Given that the default empty_value is 0.0
 this assumes that your cache type with only contain Floats.
 """
 function DataView{I<:Any}(index::OrderedDict{Symbol, I}; empty_value=0.0, mmapped=false)
+    new_index = build_index(index)
     DataView(
-        index,
+        new_index,
         DataCache(
-            get_cache_dim(values(index))...;
+            get_cache_dim(new_index)...;
             empty_value=empty_value,
             mmapped=mmapped
         )
@@ -87,15 +75,14 @@ it to build a memory mapped cache. Given that the default empty_value is 0.0
 this assumes that your cache type with only contain Floats.
 """
 function DataView(expected::Tuple; labels=(), empty_value=0.0, mmapped=false)
-    DataView(
-        expected,
-        DataCache(
-            get_cache_dim(expected)...;
-            empty_value=empty_value,
-            mmapped=mmapped
-        );
-        labels=labels
+    index = build_index(expected, labels)
+    cache = DataCache(
+        get_cache_dim(index)...;
+        empty_value=empty_value,
+        mmapped=mmapped
     )
+
+    DataView(index, cache)
 end
 
 """
@@ -103,9 +90,10 @@ end
 builds a DataView with a `StatsCache` of type `T`.
 """
 function DataView{T<:OnlineStat, I<:Any}(::Type{T}, index::OrderedDict{Symbol, I}; stats_dim=1, weighting=EqualWeighting())
-    cache = StatsCache(T, get_cache_dim(values(index))...; stats_dim=stats_dim, weighting=weighting)
+    new_index = build_index(index)
+    cache = StatsCache(T, get_cache_dim(new_index)...; stats_dim=stats_dim, weighting=weighting)
     DataView(
-        index,
+        new_index,
         cache
     )
 end
@@ -116,11 +104,11 @@ end
 builds a DataView with a `StatsCache` of type `T`.
 """
 function DataView{T<:OnlineStat}(::Type{T}, expected::Tuple; labels=(), stats_dim=1, weighting=EqualWeighting())
-    cache = StatsCache(T, get_cache_dim(expected)...; stats_dim=stats_dim, weighting=weighting)
+    index = build_index(expected, labels)
+    cache = StatsCache(T, get_cache_dim(index)...; stats_dim=stats_dim, weighting=weighting)
     DataView(
-        expected,
-        cache;
-        labels=labels
+        index,
+        cache
     )
 end
 
@@ -201,22 +189,7 @@ by `keys(datum)` to select the cache index and the value to be
 inserted should be returned by `value(datum)`.
 """
 function Base.insert!(view::DataView, model::AbstractDatum)
-    index = Array{Any, 1}(length(view.index))
-    fill!(index, -1)
-
-    idx_vals = collect(values(view.index))
-
-    for i in eachindex(index)
-        idx = findfirst(idx_vals[i], keys(model)[i])
-
-        if idx > 0
-            index[i] = idx
-        else
-            error("$(keys(model)[i]) is not in $(idx_vals[i])")
-        end
-    end
-
-    view.cache[index...] = value(model)
+    view[keys(model)...] = value(model)
 end
 
 
@@ -255,14 +228,40 @@ function Base.getindex(view::DataView, i...)
         for i in eachindex(index)
             if isa(idx_vals[i], Associative)
                 sub_dict = OrderedDict()
-                if isa(idx[i], Tuple{Vararg{Symbol}})
-                    for key in idx[i]
+                if isa(idx[i], Tuple{Vararg{Symbol}}) || isa(idx[i], Symbol)
+                    tmp_idx = idx[i]
+                    if isa(idx[i], Symbol)
+                        tmp_idx = (idx[i],)
+                    end
+
+                    for key in tmp_idx
                         sub_dict[key] = idx_vals[i][key]
                     end
                 elseif isa(idx[i], Associative)
                     for key in keys(idx[i])
                         sub_dict[key] = idx_vals[i][key][idx[i][key]]
                     end
+                elseif isa(idx[i], AbstractArray)
+                    count = 1
+                    all_found = Any[]
+                    for key in keys(idx_vals[i])
+                        start_idx = count
+                        end_idx = count + 1
+                        val = idx_vals[i][key]
+
+                        if isa(val, AbstractArray)
+                            end_idx = count + length(val)
+                        end
+                        count = end_idx
+
+                        found = findin(start_idx:end_idx, idx[i])
+                        if length(found) > 0
+                            sub_dict[key] = found
+                            push!(all_found, found...)
+                        end
+                    end
+
+                    @assert Set(all_found) == Set(idx[i])
                 end
                 push!(new_exp, sub_dict)
             else
@@ -298,15 +297,15 @@ Base.setindex!(view::AbstractDataView, x::Any, idx...) = error("Not Implemented"
 data(view::AbstractDataView) = error("Not Implemeneted")
 
 
-function get_cache_dim(expected)
-    return map(expected) do d
+function get_cache_dim(index::OrderedDict)
+    result = map(values(index)) do d
         l = 0
 
         if isa(d, Associative)
             for k in keys(d)
                 l += length(d[k])
             end
-        else
+        elseif isa(d, AbstractArray)
             for i in d
                 if isa(i, AbstractArray) || isa(i, Tuple)
                     l += length(i)
@@ -314,9 +313,12 @@ function get_cache_dim(expected)
                     l += 1
                 end
             end
+        else
+            l += 1
         end
         return l
     end
+    return result
 end
 
 function convert_partitions(x)
@@ -327,4 +329,60 @@ function convert_partitions(x)
             return d
         end
     end
+end
+
+function build_index(expected::Tuple, labels::Tuple)
+    if isempty(labels)
+        labels = tuple(map(i -> Symbol("$i"), 1:length(expected))...)
+    elseif length(labels) == length(expected)
+        labels = map(i -> Symbol(i), labels)
+    else
+        error("You must provide labels for each key. labels=$labels; keys=$expected")
+    end
+
+    @assert isa(labels, Tuple)
+    @assert isa(expected, Tuple)
+
+    return build_index(OrderedDict(zip(labels, expected)))
+end
+
+function build_index(index::OrderedDict)
+    new_index = copy(index)
+
+    # Convert partitions to OrderedDicts
+    i = 1
+    for (key, val) in index
+        if isa(val, Tuple{Vararg{Tuple}}) || isa(val, Tuple{Vararg{Pair}})
+            new_dict = OrderedDict{Symbol, Any}()
+            for item in val
+                new_dict[Symbol(item[1])] = item[2]
+            end
+
+            new_index[key] = new_dict
+        end
+
+        # If a partitioned dim has 1 or 0 items we collapse the partition
+        if isa(new_index[key], OrderedDict) && length(new_index[key]) <= 1
+            # If the partitioned dim has 1 partition we replace the dim with the name of
+            # partition and its values
+            if length(new_index[key]) == 1
+                new_keys = collect(keys(new_index))
+                new_vals = collect(values(new_index))
+
+                new_key = collect(keys(new_index[key]))[1]
+                new_val = new_index[key][new_key]
+
+                new_keys[i] = new_key
+                new_vals[i] = new_val
+
+                new_index = OrderedDict(zip(new_keys, new_vals))
+            else
+                # We remove the collapsed
+                pop!(new_index, key)
+            end
+        end
+        i += 1
+    end
+
+    return new_index
 end
