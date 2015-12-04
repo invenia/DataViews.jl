@@ -8,6 +8,8 @@ bv = BadView()
 @test_throws(ErrorException, bv[:foo])
 @test_throws(ErrorException, insert!(bv, (1,2,3)))
 @test_throws(ErrorException, data(bv))
+@test_throws(ErrorException, index(bv))
+@test_throws(ErrorException, components(bv))
 
 stop = DateTime(now())
 start = stop - Day(10)

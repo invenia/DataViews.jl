@@ -274,7 +274,7 @@ end
 
 
 """
-`getindex(view::DataView, label::Symbol)` provides a mechanism for querying the
+`index(view::DataView, label::Symbol)` provides a mechanism for querying the
 `DataView` for its indices by label. NOTE: All labels are stored as Symbols.
 """
 function index(view::DataView, labels::Vararg{Symbol})
@@ -298,7 +298,7 @@ components(view::DataView) = view.index, view.cache
 Base.insert!(view::AbstractDataView, x::Any) = error("Not Implemented")
 Base.getindex(view::AbstractDataView, idx...) = error("Not Implemented")
 Base.setindex!(view::AbstractDataView, x::Any, idx...) = error("Not Implemented")
-data(view::AbstractDataView, labels::Vararg{Symbol}) = error("Not Implemeneted")
+index(view::AbstractDataView, labels::Vararg{Symbol}) = error("Not Implemeneted")
 data(view::AbstractDataView) = error("Not Implemeneted")
 components(view::AbstractDataView) = error("Not Implemeneted")
 
