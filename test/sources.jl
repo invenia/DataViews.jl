@@ -24,6 +24,7 @@ dbinfo = SQLConnectionInfo(
 
 connect(dbinfo.driver, dbinfo.addr, dbinfo.username, dbinfo.password, dbinfo.dbname, dbinfo.port) do conn
     try
+        # Fill the db
         stmt = prepare(conn, "
             CREATE TABLE test_table
             (
@@ -39,6 +40,7 @@ connect(dbinfo.driver, dbinfo.addr, dbinfo.username, dbinfo.password, dbinfo.dbn
 
         fill_db(conn)
 
+        # Test basic SQLDataSource
         view = DataView((10:15, 3:7); labels=("x", "y"))
         src = SQLDataSource(dbinfo, "SELECT * FROM test_table", (view,))
 
@@ -46,6 +48,13 @@ connect(dbinfo.driver, dbinfo.addr, dbinfo.username, dbinfo.password, dbinfo.dbn
 
         @test length(views) == 1
         @test views[1][11, 4] != 0.0
+
+        # Test bad query
+        bad_src = SQLDataSource(dbinfo, "I DON'T KNOW HOW TO SQL", (view,))
+        @test_throws(ErrorException, fetch!(bad_src))
+
+        @test_throws(ErrorException, SQLDataSource(dbinfo, "SELECT * FROM test_table", ()))
+        @test_throws(ErrorException, SQLDataSource(dbinfo, "SELECT * FROM test_table", (view,); converters=()))
     finally
         stmt = prepare(conn, "DROP TABLE test_table")
         execute(stmt)

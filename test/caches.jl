@@ -1,3 +1,11 @@
+# Test Interface
+type BadCache <: AbstractDataCache end
+
+bc = BadCache()
+@test_throws(ErrorException, data(bc))
+@test_throws(ErrorException, sub(bc, 1))
+@test_throws(ErrorException, bc[1] = 1.0)
+
 # Test the DefaultCache
 default_cache = DataCache(3, 4; empty_value=NaN)
 default_cache[1,1] = 0.0

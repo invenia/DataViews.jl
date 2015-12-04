@@ -9,7 +9,6 @@ raw data into a `DataView`.
 abstract AbstractDatum{T}
 Base.keys(datum::AbstractDatum) = error("Not Implemented")
 value(datum::AbstractDatum) = error("Not Implemented")
-default_convert(data::Tuple) = data
 
 """
 `DefaultDatum{T}`: a datum describes the data schema to use when inserting

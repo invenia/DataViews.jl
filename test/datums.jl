@@ -1,3 +1,12 @@
+# Test interface
+type BadDatum <: AbstractDatum end
+
+bd = BadDatum()
+
+@test_throws(ErrorException, keys(bd))
+@test_throws(ErrorException, value(bd))
+
+
 convert_data(data::Tuple{Int, Int, Int}) = (
     unix2datetime(data[1]),
     data[2],

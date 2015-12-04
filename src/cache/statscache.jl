@@ -23,7 +23,6 @@ end
 constructor for building a StatsCache.
 """
 function StatsCache{T<:OnlineStat}(::Type{T}, dims::Int...; stats_dim::Int=1, weighting=EqualWeighting())
-    dump(T)
     a = Array(T, dims...)
     map(i -> a[i] = T(weighting), eachindex(a))
     StatsCache{T,ndims(a)}(a, stats_dim)
