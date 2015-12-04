@@ -75,3 +75,22 @@ function Base.sub{T,N}(cache::VersionCache{T,N}, idx::Base.ViewIndex...)
         cache.version_dim
     )
 end
+
+"""
+`slice(cache::VersionCache, idx::Base.ViewIndex...)` builds
+a new VersionCache with slice of `data`, just like `sub`
+
+NOTE: currently the PersistentArray doesn't provide its own `slice`
+that handles subarrays of the versions per element so for now we are just
+ignoring any sub index specified for the version_dim.
+"""
+function Base.slice{T,N}(cache::VersionCache{T,N}, idx::Base.ViewIndex...)
+    array_idx = idx[[setdiff(1:length(idx), cache.version_dim)...]]
+    VersionCache{T,N}(
+        slice(
+            data(cache),
+            array_idx...
+        ),
+        cache.version_dim
+    )
+end

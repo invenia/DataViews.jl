@@ -29,7 +29,6 @@ empty_labels = DataView((expected_time, expected_id))
 @test_throws(ErrorException, DataView((expected_time, expected_id); labels=("foo",)))
 
 # View with stats cache
-println("Main statscache")
 statsview = DataView(
     Variance,
     (expected_time, expected_id);
@@ -37,8 +36,8 @@ statsview = DataView(
     weighting=ExponentialWeighting(0.5)
 )
 
-@test myview[:time] == expected_time
-@test myview[:id] == expected_id
+@test index(myview, :time) == expected_time
+@test index(myview, :id) == expected_id
 
 myview[start, 1] = 5.0
 @test expected_time[1] == expected_time[1]
@@ -51,9 +50,9 @@ insert!(
 )
 
 # Check index, cache tuple returned from `data`
-index, cache = data(myview)
-@test collect(keys(index)) == [:time, :id]
-@test collect(values(index)) == Array[expected_time, expected_id]
+idx, cache = components(myview)
+@test collect(keys(idx)) == [:time, :id]
+@test collect(values(idx)) == Array[expected_time, expected_id]
 @test cache[1,2] == 3.0
 
 # Check subselection
@@ -62,7 +61,7 @@ subselect = myview[
     2:5
 ]
 
-@test data(subselect)[2] == sub(data(myview)[2], 2:4, 2:5)
+@test data(subselect) == sub(data(myview), 2:4, 2:5)
 
 # Test partitioned DataView
 index_map = OrderedDict((
@@ -75,19 +74,23 @@ index_map = OrderedDict((
 ))
 
 partitioned = DataView(index_map)
-@test data(partitioned[start, (:gps, :weather)])[2] == zeros(15)'
+@test data(partitioned[start, (:gps, :weather)]) == zeros(15)
 
 partitioned[start, (:gps => 1,)] = 1.0
-@test data(partitioned[start, (:gps, :weather,)])[2] != zeros(15)'
+@test data(partitioned[start, (:gps, :weather,)]) != zeros(15)
 
 test_gps = [1.0, 2.0, 3.0, 4.0, 5.0]
 partitioned[start, :gps] = test_gps
-sub_partitioned = partitioned[start, :gps]
-index, cache = data(sub_partitioned)
-@test collect(keys(index)) == [:time, :gps]
+sliced_partitioned = partitioned[start, :gps]
+idx, cache = components(sliced_partitioned)
+@test collect(keys(idx)) == [:gps]
+@test cache == test_gps
+
+idx, cache = components(sub(partitioned, start, :gps))
+@test collect(keys(idx)) == [:time, :gps]
 @test cache == test_gps'
 
-@test data(partitioned[start, 1:2])[2] == test_gps[1:2]'
+@test data(partitioned[start, 1:2]) == test_gps[1:2]
 data(partitioned[start, OrderedDict((:gps => 1:2, :direction => 3:4))])[2]
 
 stats_partitioned = DataView(Variance, index_map)

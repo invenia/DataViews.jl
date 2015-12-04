@@ -27,7 +27,9 @@ export
 
     AbstractDataView,
     DataView,
+    index,
     data,
+    components,
 
     AbstractDataSource,
     SQLDataSource,
