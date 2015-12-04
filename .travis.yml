@@ -16,6 +16,7 @@ before_script:
 script:
   - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
   - julia -e 'Pkg.init(); Pkg.clone(pwd());'
+  - julia -e 'Pkg.clone("https://github.com/invenia/PersistentArrays.jl");'
   - julia -e 'Pkg.clone("https://github.com/JuliaDB/DBI.jl"); Pkg.clone("https://github.com/JuliaDB/PostgreSQL.jl")'
   - julia -e 'Pkg.test("DataViews";  coverage=true)'
 after_success:
