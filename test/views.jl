@@ -82,9 +82,12 @@ partitioned[start, (:gps => 1,)] = 1.0
 
 test_gps = [1.0, 2.0, 3.0, 4.0, 5.0]
 partitioned[start, :gps] = test_gps
-@test data(partitioned[start, :gps])[2] == test_gps'
-@test data(partitioned[start, 1:2])[2] == test_gps[1:2]'
+sub_partitioned = partitioned[start, :gps]
+index, cache = data(sub_partitioned)
+@test collect(keys(index)) == [:time, :gps]
+@test cache == test_gps'
 
+@test data(partitioned[start, 1:2])[2] == test_gps[1:2]'
 data(partitioned[start, OrderedDict((:gps => 1:2, :direction => 3:4))])[2]
 
 stats_partitioned = DataView(Variance, index_map)
