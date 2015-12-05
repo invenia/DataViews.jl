@@ -36,5 +36,8 @@ data(cache::DataCache) = cache.data
 "`sub(cache::DataCache, idx::Base.ViewIndex...)` builds a new DataCache with subarray of `data`"
 Base.sub(cache::DataCache, idx::Base.ViewIndex...) = DataCache(sub(data(cache), idx...))
 
+"`slice(cache::DataCache, idx::Base.ViewIndex...)` builds a new DataCache with a slice of `data`"
+Base.slice(cache::DataCache, idx::Base.ViewIndex...) = DataCache(slice(data(cache), idx...))
+
 "`setindex!(cache::DataCache, x::Any, idx::Int...` sets the index in the `data` of the DataCache"
 Base.setindex!(cache::DataCache, x::Any, idx::Int...) = data(cache)[idx...] = x

@@ -199,11 +199,50 @@ using the expected keys to determine the determine the element(s) to
 set in the cache.
 """
 function Base.setindex!(view::DataView, x::Any, i...)
-    idx = convert_partitions(i)
+    idx = convert_partitions(pad(view, i))
     index = indices(view, idx...)
     view.cache[index...] = x
 end
 
+Base.getindex(view::DataView, i...) = slice(view, i...)
+
+function Base.slice(view::DataView, i...)
+    idx = convert_partitions(pad(view, i))
+    index = indices(view, idx...)
+
+    sliced = slice(view.cache, index...)
+
+    if length(sliced) == 1
+        return sliced[1]
+    else
+        idx_vals = collect(values(view.index))
+        idx_keys = collect(keys(view.index))
+
+        # Handle what was dropped by the slice
+        new_idx = Any[]
+        new_index = Any[]
+        new_idx_vals = Any[]
+        new_idx_keys = Any[]
+
+        for j in eachindex(index)
+            if (isa(index[j], Colon) ||
+                (isa(index[j], AbstractArray) && length(index[j]) > 1))
+                push!(new_idx, idx[j])
+                push!(new_index, index[j])
+                push!(new_idx_vals, idx_vals[j])
+                push!(new_idx_keys, idx_keys[j])
+            end
+        end
+
+        new_exp = reindex(new_idx_vals, new_index, new_idx)
+
+        return DataView(
+            tuple(new_exp...),
+            sliced;
+            labels=(new_idx_keys...)
+        )
+    end
+end
 
 """
 `getindex(view::DataView, idx...)` performs array style indexing on the
@@ -211,8 +250,8 @@ end
 from a sub cache rather than a copy of it. Also, if the subcache contains a
 single value then that value will be returned rather than a new DataView.
 """
-function Base.getindex(view::DataView, i...)
-    idx = convert_partitions(i)
+function Base.sub(view::DataView, i...)
+    idx = convert_partitions(pad(view, i))
     index = indices(view, idx...)
 
     subcache = sub(view.cache, index...)
@@ -223,51 +262,7 @@ function Base.getindex(view::DataView, i...)
         return subcache[1]
     else
         idx_vals = collect(values(view.index))
-        new_exp = Any[]
-
-        for i in eachindex(index)
-            if isa(idx_vals[i], Associative)
-                sub_dict = OrderedDict()
-                if isa(idx[i], Tuple{Vararg{Symbol}}) || isa(idx[i], Symbol)
-                    tmp_idx = idx[i]
-                    if isa(idx[i], Symbol)
-                        tmp_idx = (idx[i],)
-                    end
-
-                    for key in tmp_idx
-                        sub_dict[key] = idx_vals[i][key]
-                    end
-                elseif isa(idx[i], Associative)
-                    for key in keys(idx[i])
-                        sub_dict[key] = idx_vals[i][key][idx[i][key]]
-                    end
-                elseif isa(idx[i], AbstractArray)
-                    count = 1
-                    all_found = Any[]
-                    for key in keys(idx_vals[i])
-                        start_idx = count
-                        end_idx = count + 1
-                        val = idx_vals[i][key]
-
-                        if isa(val, AbstractArray)
-                            end_idx = count + length(val)
-                        end
-                        count = end_idx
-
-                        found = findin(start_idx:end_idx, idx[i])
-                        if length(found) > 0
-                            sub_dict[key] = found
-                            push!(all_found, found...)
-                        end
-                    end
-
-                    @assert Set(all_found) == Set(idx[i])
-                end
-                push!(new_exp, sub_dict)
-            else
-                push!(new_exp, idx_vals[i][index[i]])
-            end
-        end
+        new_exp = reindex(idx_vals, index, idx)
 
         return DataView(
             tuple(new_exp...),
@@ -279,22 +274,33 @@ end
 
 
 """
-`getindex(view::DataView, label::Symbol)` provides a mechanism for querying the
+`index(view::DataView, label::Symbol)` provides a mechanism for querying the
 `DataView` for its indices by label. NOTE: All labels are stored as Symbols.
 """
-Base.getindex(view::DataView, label::Symbol) = view.index[label]
+function index(view::DataView, labels::Vararg{Symbol})
+    if length(labels) > 1
+        return tuple(map(i -> view.index[i], labels)...)
+    elseif length(labels) == 1
+        return view.index[labels[1]]
+    else
+        return view.index
+    end
+end
+
+data(view::DataView) = view.cache
 
 """
-`data(view::DataView)` returns the labels, indices and cache as a tuple.
+`raw(view::DataView)` returns the labels, indices and cache as a tuple.
 """
-data(view::DataView) = view.index, view.cache
+components(view::DataView) = view.index, view.cache
 
 
 Base.insert!(view::AbstractDataView, x::Any) = error("Not Implemented")
 Base.getindex(view::AbstractDataView, idx...) = error("Not Implemented")
-Base.getindex(view::AbstractDataView, label::Symbol) = error("Not Implemented")
 Base.setindex!(view::AbstractDataView, x::Any, idx...) = error("Not Implemented")
+index(view::AbstractDataView, labels::Vararg{Symbol}) = error("Not Implemeneted")
 data(view::AbstractDataView) = error("Not Implemeneted")
+components(view::AbstractDataView) = error("Not Implemeneted")
 
 
 function get_cache_dim(index::OrderedDict)
@@ -367,7 +373,7 @@ function build_index(index::OrderedDict)
             # partition and its values
             if length(new_index[key]) == 1
                 new_keys = collect(keys(new_index))
-                new_vals = collect(values(new_index))
+                new_vals = Any[values(new_index)...]
 
                 new_key = collect(keys(new_index[key]))[1]
                 new_val = new_index[key][new_key]
@@ -386,3 +392,70 @@ function build_index(index::OrderedDict)
 
     return new_index
 end
+
+function reindex(expected, sub_indices, idx)
+    new_exp = Any[]
+
+    for i in eachindex(sub_indices)
+        if isa(expected[i], Associative)
+            sub_dict = OrderedDict()
+            if isa(idx[i], Tuple{Vararg{Symbol}}) || isa(idx[i], Symbol)
+                tmp_idx = idx[i]
+                if isa(idx[i], Symbol)
+                    tmp_idx = (idx[i],)
+                end
+
+                for key in tmp_idx
+                    sub_dict[key] = expected[i][key]
+                end
+            elseif isa(idx[i], Associative)
+                for key in keys(idx[i])
+                    sub_dict[key] = expected[i][key][idx[i][key]]
+                end
+            elseif isa(idx[i], AbstractArray)
+                count = 1
+                all_found = Any[]
+                for key in keys(expected[i])
+                    start_idx = count
+                    end_idx = count + 1
+                    val = expected[i][key]
+
+                    if isa(val, AbstractArray)
+                        end_idx = count + length(val)
+                    end
+                    count = end_idx
+
+                    found = findin(start_idx:end_idx, idx[i])
+                    if length(found) > 0
+                        sub_dict[key] = found
+                        push!(all_found, found...)
+                    end
+                end
+
+                @assert Set(all_found) == Set(idx[i])
+            elseif isa(idx[i], Colon)
+                sub_dict = expected[i]
+            end
+
+            push!(new_exp, sub_dict)
+        else
+            push!(new_exp, expected[i][sub_indices[i]])
+        end
+    end
+
+    return new_exp
+end
+
+function pad(view, idx)
+    len_diff = length(view.index) - length(idx)
+
+    if len_diff > 0
+        return vcat(
+            idx...,
+            fill(:, len_diff)...
+        )
+    else
+        return idx
+    end
+end
+
