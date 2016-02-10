@@ -1,7 +1,7 @@
 module DataViews
 
 using DBI
-using OnlineStats
+import OnlineStats: OnlineStat, ExponentialWeight, EqualWeight, fit!
 
 macro lintpragma( s )
 end

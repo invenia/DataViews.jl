@@ -5,7 +5,6 @@ using Base.Test
 
 using DBI
 using PostgreSQL
-using OnlineStats
 using DataStructures
 
 import Base.Dates: Day

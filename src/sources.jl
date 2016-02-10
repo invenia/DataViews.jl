@@ -87,6 +87,10 @@ function fetch!(src::SQLDataSource)
             stmt = prepare(conn, src.query)
             results = execute(stmt, [src.params...])
 
+			if length(results) == 0
+				warn("Query returned no results.")
+			end
+
             if errcode(conn) != 0 || errstring(conn) != ""
                 error("
                     Query Failed with '$(errstring(conn))($(errcode(conn)))':\n

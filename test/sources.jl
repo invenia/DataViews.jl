@@ -25,6 +25,7 @@ dbinfo = SQLConnectionInfo(
 connect(dbinfo.driver, dbinfo.addr, dbinfo.username, dbinfo.password, dbinfo.dbname, dbinfo.port) do conn
     try
         # Fill the db
+        info("Creating test table ...")
         stmt = prepare(conn, "
             CREATE TABLE test_table
             (
@@ -38,9 +39,11 @@ connect(dbinfo.driver, dbinfo.addr, dbinfo.username, dbinfo.password, dbinfo.dbn
         @test errcode(conn) == 0
         @test errstring(conn) == ""
 
+        info("Filling table ...")
         fill_db(conn)
 
         # Test basic SQLDataSource
+        info("Testing correct query ...")
         view = DataView((10:15, 3:7); labels=("x", "y"))
         src = SQLDataSource(dbinfo, "SELECT * FROM test_table", (view,))
 
@@ -50,12 +53,14 @@ connect(dbinfo.driver, dbinfo.addr, dbinfo.username, dbinfo.password, dbinfo.dbn
         @test views[1][11, 4] != 0.0
 
         # Test bad query
+        info("Testing bad query ...")
         bad_src = SQLDataSource(dbinfo, "I DON'T KNOW HOW TO SQL", (view,))
         @test_throws(ErrorException, fetch!(bad_src))
 
         @test_throws(ErrorException, SQLDataSource(dbinfo, "SELECT * FROM test_table", ()))
         @test_throws(ErrorException, SQLDataSource(dbinfo, "SELECT * FROM test_table", (view,); converters=()))
     finally
+        info("Dropping test table ...")
         stmt = prepare(conn, "DROP TABLE test_table")
         execute(stmt)
     end

@@ -1,5 +1,3 @@
-using OnlineStats
-
 """
 `StatsCache{T<:OnlineStat,N}` is a cache that stores
 running statistics along some dimension using the
@@ -22,9 +20,10 @@ end
 `DataCache{T<:OnlineStat}(::Type{T}, dims::Int64...; stats_dim::Int64=1)` is
 constructor for building a StatsCache.
 """
-function StatsCache{T<:OnlineStat}(::Type{T}, dims::Int...; stats_dim::Int=1, weighting=EqualWeighting())
+function StatsCache{T<:OnlineStat}(::Type{T}, dims::Int...; stats_dim::Int=1, weighting=EqualWeight())
     a = Array(T, dims...)
-    map(i -> a[i] = T(weighting), eachindex(a))
+    #init_val = T(weighting)
+    map(i -> a[i] = T(deepcopy(weighting)), eachindex(a))
     StatsCache{T,ndims(a)}(a, stats_dim)
 end
 
@@ -59,7 +58,8 @@ function Base.setindex!(cache::StatsCache, x::Any, idx::Int...)
         prev_idx[cache.stats_dim] -= 1
         data(cache)[idx...] = copy(data(cache)[prev_idx...])
     end
-    OnlineStats.update!(data(cache)[idx...], x)
+
+    fit!(data(cache)[idx...], x)
 end
 
 # For common operations like mean or std on the StatsCache data we

@@ -89,7 +89,7 @@ end
 `DataView{T<:OnlineStat}(::Type{T}, index::Dict{Symbol, Any}; stats_dim=1)`
 builds a DataView with a `StatsCache` of type `T`.
 """
-function DataView{T<:OnlineStat, I<:Any}(::Type{T}, index::OrderedDict{Symbol, I}; stats_dim=1, weighting=EqualWeighting())
+function DataView{T<:OnlineStat, I<:Any}(::Type{T}, index::OrderedDict{Symbol, I}; stats_dim=1, weighting=EqualWeight())
     new_index = build_index(index)
     cache = StatsCache(T, get_cache_dim(new_index)...; stats_dim=stats_dim, weighting=weighting)
     DataView(
@@ -103,7 +103,7 @@ end
 `DataView{T<:OnlineStat}(::Type{T}, expected::Tuple; labels=(), stats_dim=1)`
 builds a DataView with a `StatsCache` of type `T`.
 """
-function DataView{T<:OnlineStat}(::Type{T}, expected::Tuple; labels=(), stats_dim=1, weighting=EqualWeighting())
+function DataView{T<:OnlineStat}(::Type{T}, expected::Tuple; labels=(), stats_dim=1, weighting=EqualWeight())
     index = build_index(expected, labels)
     cache = StatsCache(T, get_cache_dim(index)...; stats_dim=stats_dim, weighting=weighting)
     DataView(

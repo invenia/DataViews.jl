@@ -1,4 +1,5 @@
 # Test interface failure conditions
+import OnlineStats: ExponentialWeight
 type BadView <: AbstractDataView end
 
 bv = BadView()
@@ -35,7 +36,7 @@ statsview = DataView(
     Variance,
     (expected_time, expected_id);
     labels=("time", "id"),
-    weighting=ExponentialWeighting(0.5)
+    weighting=ExponentialWeight(0.5)
 )
 
 @test index(myview, :time) == expected_time

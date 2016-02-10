@@ -6,5 +6,5 @@ using Lint
 msgs = lintpkg("DataViews", returnMsgs=true)
 
 for m in msgs
-    @test m.level < 2
+    @test Lint.level(m) != :ERROR
 end

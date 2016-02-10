@@ -1,4 +1,6 @@
 # Test Interface
+import OnlineStats: Variance, mean, nobs
+
 type BadCache <: AbstractDataCache end
 
 bc = BadCache()
@@ -21,6 +23,7 @@ default_cache[2,:] = ones(4)
 # Test a StatsCache
 stats_cache = DataViews.StatsCache(Variance, 3, 4)
 stats_cache[1,1] = 2.0
+
 @test mean(stats_cache[1,1]) == 2.0
 @test nobs(stats_cache[1,1]) == 1
 stats_cache[2,1] = 4.0

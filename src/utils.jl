@@ -46,12 +46,12 @@ function Base.findfirst{T<:Any}(keys::Range{T}, key::T)
 end
 
 """
-`findin{T<:Any}(a::StepRange{T}, b::StepRange{T})` provides `findin`
+`findin{T<:Any, S<:Any}(a::StepRange{T,S}, b::StepRange{T,S})` provides `findin`
 method that returns a StepRange{T} when given two StepRange{T}.
 Currently, `findin` only returns a Range{T} when working with UnitRanges,
 otherwise an `Array` is returned, which we want to avoid in DataViews.
 """
-function Base.findin{T<:Any}(a::StepRange{T}, b::StepRange{T})
+function Base.findin{T<:Any,S<:Any}(a::StepRange{T,S}, b::StepRange{T,S})
     nintersect = intersect(a, b)
     step_type = typeof(step(a))
 
